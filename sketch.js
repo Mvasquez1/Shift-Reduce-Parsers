@@ -1,7 +1,8 @@
-let input, Button; 
+let input;
+let Button; 
 let table = {}, grammar = [];
 let stack = [], output = [];
-let inputStr = ''; 
+let inputStr = '';
 
 function setup() {
   //input can be hardcoded
@@ -17,7 +18,7 @@ function setup() {
   /*5.*/"F -> ( E )", 
   /*6.*/"F -> id"
   ];
-    //hardcoded table (column)
+    //hardcoded table (row)
     //numbers = stages
   table = {
     0: { id: 'S5', '(': 'S4', E: 1, T: 2, F: 3 },
@@ -45,7 +46,7 @@ function draw() {
   fill(200);
   rect(5, 50, displayWidth -43, 800);
 
-  //text
+  //text, box for work
   textFont('Courier New');
   fill(0);
   textSize(15);
@@ -63,24 +64,37 @@ function draw() {
 
 //parcing
 function startParsing() {
+  //seperates based on spaces, then joints them without for the input
+  inputStr =  input.value().split(" ").join('') + '$';
   output = [];
-  //user input without spaces
-  inputStr =  input.value().split(/\s+/).join('') + '$';
-
   stack = [0];
-  // keep track of index of string
+  // a input index tracker
   let i = 0;
 
-  while (true) {
+  let keepParsing = true;
+  while (keepParsing) {
     //top of stack for reducing
     let state = stack[stack.length - 1];
+
     //id, (, ), +, *
-    let symbol = getNextSymbol(i);
-    let action = table[state]?.[symbol];
+    let key;
+    if (inputStr[i] === 'i' && inputStr[i + 1] === 'd') {
+      key = 'id';
+    } else {
+      key = inputStr[i];
+    }
+  
+    // if the current state and the current key in the state...
+    let action;
+    if (table[state] && key in table[state]) {
+      action = table[state][key];
+    } else {
+      action = undefined;
+    }
 
     //alligning columns
     let stackColumn = `Stack: ${stack.join(' ')}`.padEnd(40);
-    let inputColumn = `Input: ${inputStr.slice(i)}`.padEnd(30);
+    let inputColumn = `Input: ${inputStr.slice(i)}`.padEnd(40);
     let actionColumn = `Action: ${action}`;
     output.push(`${stackColumn}${inputColumn}${actionColumn}`);
 
@@ -98,10 +112,10 @@ function startParsing() {
 
     //Shift
     if (action[0] === 'S') {
-      stack.push(symbol);
+      stack.push(key);
       stack.push(parseInt(action.slice(1)));
-      //if id, move 2 chars, if not then 1
-      if (symbol === 'id') {
+      //if id, move 2 indexes, if not then 1
+      if (key === 'id') {
           i += 2;
       } else {
           i += 1;
@@ -110,29 +124,37 @@ function startParsing() {
 
      //Reduce
      else if ( action[0] === 'R') {
-      let prodNum = parseInt(action.slice(1)) - 1;
-      let prod = grammar[prodNum];
+      let rule = parseInt(action.slice(1)) - 1;
+      let prod = grammar[rule];
       let [leftSide, rightSide] = prod.split(' -> ');
-      let rightSideSymbols = rightSide.trim() === 'id' ? ['id'] : rightSide.trim().split(' ');
-      //pop symbol and state
-      for (let j = 0; j < rightSideSymbols.length * 2; j++) {
+
+      let rightSidekeys;
+      if (rightSide.trim() === 'id') {
+        rightSidekeys = ['id'];
+      } else {
+        rightSidekeys = rightSide.trim().split(' ');
+      }
+      //pop key and state
+      for (let j = 0; j < rightSidekeys.length * 2; j++) {
         stack.pop();
       }
 
       //Goto table
       let topState = stack[stack.length - 1];
       stack.push(leftSide.trim());
-      let gotoState = table[topState]?.[leftSide.trim()];
-      if (gotoState === undefined) {
-        output.push("Incorrect Goto");
-      break;
+      //check if real and possible goto state...
+      let gotoState;
+      if (table[topState] && leftSide.trim() in table[topState]) {
+        gotoState = table[topState][leftSide.trim()];
+      } else {
+        gotoState = undefined;
       }
+
+      if (gotoState === undefined) {
+        output.push("Incorrect Goto or Empty Goto Table");
+      break;
+      } // push if there
        stack.push(gotoState);
     }
   }
-}
-
-function getNextSymbol(index) {
-  if (inputStr[index] === 'i' && inputStr[index + 1] === 'd') return 'id';
-  return inputStr[index];
 }
